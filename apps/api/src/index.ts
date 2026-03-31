@@ -4,6 +4,7 @@ import cookie from "@fastify/cookie";
 import { config } from "./config.js";
 import { authRoutes } from "./routes/auth.js";
 import { serverRoutes } from "./routes/servers.js";
+import { xtreamRoutes } from "./routes/xtream.js";
 import { redis } from "./cache/redis.js";
 
 const app = Fastify({ logger: true });
@@ -18,6 +19,7 @@ app.get("/api/health", async () => ({ status: "ok" }));
 
 await app.register(authRoutes);
 await app.register(serverRoutes);
+await app.register(xtreamRoutes);
 
 await redis.connect();
 await app.listen({ port: config.port, host: config.host });

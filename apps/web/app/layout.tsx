@@ -1,5 +1,7 @@
 import "./globals.css";
 import type { Metadata } from "next";
+import { Sidebar } from "@/components/layout/sidebar";
+import { Header } from "@/components/layout/header";
 
 export const metadata: Metadata = {
   title: "StreamVault",
@@ -11,7 +13,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en" className="dark">
       <body className="min-h-screen bg-surface text-white">
         <div className="flex h-screen">
-          {children}
+          <Sidebar />
+          <div className="flex-1 flex flex-col overflow-hidden">
+            <Header />
+            <main className="flex-1 overflow-y-auto p-6">
+              {children}
+            </main>
+          </div>
         </div>
       </body>
     </html>

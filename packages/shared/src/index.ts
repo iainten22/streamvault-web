@@ -4,3 +4,6 @@ export * from "./models/auth";
 export * from "./models/channel";
 export * from "./api/xtream";
 export * from "./api/responses";
+export * from "./models/stremio";
+export * from "./models/debrid";
+export * from "./models/tmdb";

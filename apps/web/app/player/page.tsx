@@ -21,11 +21,24 @@ function PlayerPageInner() {
   const type = (searchParams.get("type") ?? "live") as "live" | "movie" | "series";
   const title = searchParams.get("title") ?? "Stream";
   const logoUrl = searchParams.get("logo") ?? undefined;
+  const directUrl = searchParams.get("directUrl");
 
   const { setStream, togglePlay, toggleMute, setVolume, volume } = usePlayerStore();
   const videoContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    if (directUrl) {
+      setStream({
+        url: directUrl,
+        title,
+        streamId: 0,
+        serverId: 0,
+        type,
+        logoUrl,
+      });
+      return;
+    }
+
     if (!serverId || !streamId) return;
 
     const extension = type === "live" ? "ts" : "mp4";
@@ -43,7 +56,7 @@ function PlayerPageInner() {
           logoUrl,
         });
       });
-  }, [serverId, streamId, type, title, logoUrl, setStream]);
+  }, [serverId, streamId, type, title, logoUrl, directUrl, setStream]);
 
   const seekRelative = useCallback((seconds: number) => {
     const video = document.querySelector("video");

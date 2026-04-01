@@ -6,6 +6,7 @@ import { authRoutes } from "./routes/auth.js";
 import { serverRoutes } from "./routes/servers.js";
 import { xtreamRoutes } from "./routes/xtream.js";
 import { favoritesRoutes } from "./routes/favorites.js";
+import { historyRoutes } from "./routes/history.js";
 import { redis } from "./cache/redis.js";
 
 const app = Fastify({ logger: true });
@@ -22,6 +23,7 @@ await app.register(authRoutes);
 await app.register(serverRoutes);
 await app.register(xtreamRoutes);
 await app.register(favoritesRoutes);
+await app.register(historyRoutes);
 
 await redis.connect();
 await app.listen({ port: config.port, host: config.host });

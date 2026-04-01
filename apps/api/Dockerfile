@@ -20,6 +20,5 @@ WORKDIR /app
 COPY --from=build /app/apps/api/dist ./dist
 COPY --from=build /app/apps/api/node_modules ./node_modules
 COPY --from=build /app/apps/api/package.json ./
-COPY --from=build /app/apps/api/drizzle ./drizzle
 EXPOSE 3001
 CMD ["node", "dist/index.js"]

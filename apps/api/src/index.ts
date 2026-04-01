@@ -91,14 +91,23 @@ try {
   `);
   const adminId = (adminUser as { id: number }).id;
 
-  const existingAddon = await db.execute(sql`
-    SELECT id FROM stremio_addons WHERE user_id = ${adminId} AND addon_url = ${DEFAULT_ADDON_URL} LIMIT 1
-  `);
-  if ((existingAddon as unknown[]).length === 0) {
-    await db.execute(sql`
-      INSERT INTO stremio_addons (user_id, addon_url, config, enabled) VALUES (${adminId}, ${DEFAULT_ADDON_URL}, '{}', true)
+  const DEFAULT_ADDONS = [
+    DEFAULT_ADDON_URL,
+    "https://v3-cinemeta.strem.io",
+    "https://torrentio.strem.fun",
+    "https://opensubtitles-v3.strem.io",
+  ];
+
+  for (const url of DEFAULT_ADDONS) {
+    const existing = await db.execute(sql`
+      SELECT id FROM stremio_addons WHERE user_id = ${adminId} AND addon_url = ${url} LIMIT 1
     `);
-    console.log("Default Stremio addon installed");
+    if ((existing as unknown[]).length === 0) {
+      await db.execute(sql`
+        INSERT INTO stremio_addons (user_id, addon_url, config, enabled) VALUES (${adminId}, ${url}, '{}', true)
+      `);
+      console.log("Installed default addon:", url);
+    }
   }
 } catch (e) {
   console.error("Failed to create tables:", e);

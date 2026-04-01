@@ -4,147 +4,223 @@ import { useApiQuery } from "@/hooks/use-api";
 import { PosterCard } from "@/components/content/poster-card";
 import { Loading } from "@/components/common/loading";
 import { api } from "@/lib/api-client";
-import type { StremioAddon, StremioMetaItem } from "@streamvault/shared";
+import type { StremioAddon, StremioMetaItem, StremioStream, TmdbSearchResponse } from "@streamvault/shared";
+
+interface StreamWithAddon extends StremioStream {
+  addonId?: number;
+  addonUrl?: string;
+}
 
 export default function StremioPage() {
-  const [addonUrl, setAddonUrl] = useState("");
-  const [installing, setInstalling] = useState(false);
-  const { data: addons, loading, refetch } = useApiQuery<StremioAddon[]>("/api/stremio/addons");
-  const [selectedAddon, setSelectedAddon] = useState<StremioAddon | null>(null);
-  const [selectedCatalog, setSelectedCatalog] = useState<{ type: string; id: string } | null>(null);
-  const [catalogItems, setCatalogItems] = useState<StremioMetaItem[]>([]);
-  const [loadingCatalog, setLoadingCatalog] = useState(false);
+  const { data: addons, loading: loadingAddons } = useApiQuery<StremioAddon[]>("/api/stremio/addons");
 
-  const handleInstall = async () => {
-    if (!addonUrl.trim()) return;
-    setInstalling(true);
+  // Cinemeta catalogs
+  const [popularMovies, setPopularMovies] = useState<StremioMetaItem[]>([]);
+  const [popularSeries, setPopularSeries] = useState<StremioMetaItem[]>([]);
+  const [loadingCatalogs, setLoadingCatalogs] = useState(true);
+
+  // TMDB trending
+  const { data: trendingData } = useApiQuery<TmdbSearchResponse>("/api/tmdb/search?query=popular");
+
+  // Stream resolution
+  const [selectedItem, setSelectedItem] = useState<{ type: string; id: string; title: string; poster: string | null } | null>(null);
+  const [streams, setStreams] = useState<StreamWithAddon[]>([]);
+  const [loadingStreams, setLoadingStreams] = useState(false);
+  const [resolving, setResolving] = useState<string | null>(null);
+
+  // Fetch Cinemeta catalogs
+  useEffect(() => {
+    if (!addons) return;
+    const cinemeta = addons.find((a) => a.addonUrl.includes("cinemeta"));
+    if (!cinemeta) { setLoadingCatalogs(false); return; }
+
+    Promise.all([
+      api.get<{ metas: StremioMetaItem[] }>(`/api/stremio/catalog/${cinemeta.id}/movie/top`).catch(() => ({ metas: [] })),
+      api.get<{ metas: StremioMetaItem[] }>(`/api/stremio/catalog/${cinemeta.id}/series/top`).catch(() => ({ metas: [] })),
+    ]).then(([movies, series]) => {
+      setPopularMovies(movies.metas.slice(0, 20));
+      setPopularSeries(series.metas.slice(0, 20));
+      setLoadingCatalogs(false);
+    });
+  }, [addons]);
+
+  const handleSelectItem = async (type: string, id: string, title: string, poster: string | null) => {
+    setSelectedItem({ type, id, title, poster });
+    setLoadingStreams(true);
+    setStreams([]);
     try {
-      await api.post("/api/stremio/addons", { addonUrl: addonUrl.trim() });
-      setAddonUrl("");
-      refetch();
-    } catch (e) {
-      alert(e instanceof Error ? e.message : "Failed to install addon");
+      const result = await api.get<{ streams: StreamWithAddon[] }>(`/api/stremio/streams-all/${type}/${id}`);
+      setStreams(result.streams);
+    } catch {
+      setStreams([]);
     } finally {
-      setInstalling(false);
+      setLoadingStreams(false);
     }
   };
 
-  const handleRemove = async (id: number) => {
-    await api.del(`/api/stremio/addons/${id}`);
-    refetch();
-  };
-
-  useEffect(() => {
-    if (!selectedAddon || !selectedCatalog) {
-      setCatalogItems([]);
+  const handlePlayStream = async (stream: StreamWithAddon) => {
+    const title = selectedItem?.title ?? "Stream";
+    if (stream.url) {
+      window.location.href = `/player?serverId=0&streamId=0&type=movie&title=${encodeURIComponent(title)}&directUrl=${encodeURIComponent(stream.url)}`;
       return;
     }
-    setLoadingCatalog(true);
-    api
-      .get<{ metas: StremioMetaItem[] }>(
-        `/api/stremio/catalog/${selectedAddon.id}/${selectedCatalog.type}/${selectedCatalog.id}`,
-      )
-      .then((res) => setCatalogItems(res.metas ?? []))
-      .catch(() => setCatalogItems([]))
-      .finally(() => setLoadingCatalog(false));
-  }, [selectedAddon, selectedCatalog]);
+    if (stream.infoHash) {
+      setResolving(stream.infoHash);
+      try {
+        const magnet = `magnet:?xt=urn:btih:${stream.infoHash}`;
+        const { id: torrentId } = await api.post<{ id: string }>("/api/debrid/add-magnet", { magnet });
+        await api.post("/api/debrid/select-files", { torrentId, files: "all" });
+        let attempts = 0;
+        while (attempts < 30) {
+          const info = await api.get<{ status: string; links: string[] }>(`/api/debrid/torrent/${torrentId}`);
+          if (info.status === "downloaded" && info.links.length > 0) {
+            const { download } = await api.post<{ download: string }>("/api/debrid/unrestrict", { link: info.links[0] });
+            window.location.href = `/player?serverId=0&streamId=0&type=movie&title=${encodeURIComponent(title)}&directUrl=${encodeURIComponent(download)}`;
+            return;
+          }
+          await new Promise((r) => setTimeout(r, 2000));
+          attempts++;
+        }
+      } catch (e) {
+        console.error("Debrid resolution failed:", e);
+      } finally {
+        setResolving(null);
+      }
+    }
+  };
+
+  // Stream detail view
+  if (selectedItem) {
+    return (
+      <div className="h-full overflow-y-auto">
+        <button onClick={() => { setSelectedItem(null); setStreams([]); }} className="text-sm text-primary-light hover:underline mb-4 block">
+          ← Back to browse
+        </button>
+        <div className="flex gap-4 mb-6">
+          {selectedItem.poster && <img src={selectedItem.poster} alt="" className="w-32 rounded-lg object-cover" />}
+          <div>
+            <h1 className="text-2xl font-bold">{selectedItem.title}</h1>
+            <p className="text-sm text-gray-400 mt-1">{streams.length} streams found</p>
+          </div>
+        </div>
+
+        {loadingStreams ? (
+          <Loading className="py-4" />
+        ) : (
+          <div className="space-y-2 max-w-2xl">
+            {streams.map((stream, i) => (
+              <button
+                key={i}
+                onClick={() => handlePlayStream(stream)}
+                disabled={resolving === stream.infoHash}
+                className="w-full p-3 rounded-lg bg-surface-light hover:bg-white/10 transition text-left disabled:opacity-50"
+              >
+                <p className="text-sm font-medium">{stream.name ?? stream.title ?? "Stream"}</p>
+                {stream.title && stream.name && <p className="text-xs text-gray-400 mt-1">{stream.title}</p>}
+                <div className="flex gap-2 mt-1">
+                  {stream.url && <span className="text-xs text-green-400">Direct</span>}
+                  {stream.infoHash && (
+                    <span className="text-xs text-yellow-400">
+                      {resolving === stream.infoHash ? "Resolving..." : "Torrent"}
+                    </span>
+                  )}
+                </div>
+              </button>
+            ))}
+            {streams.length === 0 && !loadingStreams && (
+              <p className="text-gray-500 text-center py-4">No streams found.</p>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  }
 
   return (
-    <div className="h-full overflow-y-auto">
-      <h1 className="text-2xl font-bold mb-6">Stremio Addons</h1>
+    <div className="h-full overflow-y-auto space-y-8">
+      <h1 className="text-2xl font-bold">Browse</h1>
 
-      <div className="flex gap-2 mb-6 max-w-xl">
-        <input
-          type="text"
-          value={addonUrl}
-          onChange={(e) => setAddonUrl(e.target.value)}
-          placeholder="Addon URL (e.g. https://addon.example.com/manifest.json)"
-          className="flex-1 px-4 py-2 rounded-lg bg-surface-light border border-gray-700 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary/50"
-        />
-        <button
-          onClick={handleInstall}
-          disabled={installing}
-          className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/80 disabled:opacity-50 transition"
-        >
-          {installing ? "Installing..." : "Install"}
-        </button>
-      </div>
+      {(loadingAddons || loadingCatalogs) && <Loading className="py-4" />}
 
-      {loading ? (
-        <Loading className="py-4" />
-      ) : (
-        <div className="space-y-3 mb-8">
-          {(addons ?? []).map((addon) => (
-            <div key={addon.id} className="flex items-center gap-4 p-3 bg-surface-light rounded-lg">
-              {addon.manifest?.logo && (
-                <img src={addon.manifest.logo} alt="" className="w-10 h-10 object-contain rounded" />
-              )}
-              <div className="flex-1 min-w-0">
-                <p className="font-medium">{addon.manifest?.name ?? addon.addonUrl}</p>
-                <p className="text-xs text-gray-400 truncate">{addon.manifest?.description ?? addon.addonUrl}</p>
-                {addon.manifest?.catalogs && addon.manifest.catalogs.length > 0 && (
-                  <div className="flex gap-1 mt-1 flex-wrap">
-                    {addon.manifest.catalogs.map((cat) => (
-                      <button
-                        key={`${cat.type}-${cat.id}`}
-                        onClick={() => {
-                          setSelectedAddon(addon);
-                          setSelectedCatalog({ type: cat.type, id: cat.id });
-                        }}
-                        className={`text-xs px-2 py-0.5 rounded transition ${
-                          selectedAddon?.id === addon.id && selectedCatalog?.id === cat.id
-                            ? "bg-primary text-white"
-                            : "bg-white/10 text-gray-300 hover:bg-white/20"
-                        }`}
-                      >
-                        {cat.name}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-              <button
-                onClick={() => handleRemove(addon.id)}
-                className="text-red-400 hover:text-red-300 text-sm px-2"
-              >
-                Remove
-              </button>
-            </div>
-          ))}
-          {(addons ?? []).length === 0 && (
-            <p className="text-gray-500 text-sm">No addons installed. Paste a Stremio addon URL above.</p>
-          )}
-        </div>
-      )}
-
-      {selectedCatalog && (
-        <div>
-          <h2 className="text-lg font-semibold mb-3">
-            {selectedAddon?.manifest?.name} — {selectedCatalog.id}
-          </h2>
-          {loadingCatalog ? (
-            <Loading className="py-4" />
-          ) : (
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-3">
-              {catalogItems.map((item) => (
+      {/* Popular Movies from Cinemeta */}
+      {popularMovies.length > 0 && (
+        <section>
+          <h2 className="text-lg font-semibold mb-3">Popular Movies</h2>
+          <div className="flex gap-3 overflow-x-auto pb-2">
+            {popularMovies.map((item) => (
+              <div key={item.id} className="shrink-0 w-36">
                 <PosterCard
-                  key={item.id}
                   title={item.name}
                   posterUrl={item.poster ?? null}
                   rating={item.imdbRating}
                   year={item.releaseInfo}
-                  onClick={() => {
-                    window.location.href = `/scraper?type=${item.type}&id=${item.id}&title=${encodeURIComponent(item.name)}&poster=${encodeURIComponent(item.poster ?? "")}`;
-                  }}
+                  onClick={() => handleSelectItem(item.type, item.id, item.name, item.poster ?? null)}
                 />
-              ))}
-            </div>
-          )}
-          {catalogItems.length === 0 && !loadingCatalog && (
-            <p className="text-gray-500 text-center py-4">No items in this catalog.</p>
-          )}
-        </div>
+              </div>
+            ))}
+          </div>
+        </section>
       )}
+
+      {/* Popular Series from Cinemeta */}
+      {popularSeries.length > 0 && (
+        <section>
+          <h2 className="text-lg font-semibold mb-3">Popular Series</h2>
+          <div className="flex gap-3 overflow-x-auto pb-2">
+            {popularSeries.map((item) => (
+              <div key={item.id} className="shrink-0 w-36">
+                <PosterCard
+                  title={item.name}
+                  posterUrl={item.poster ?? null}
+                  rating={item.imdbRating}
+                  year={item.releaseInfo}
+                  onClick={() => handleSelectItem(item.type, item.id, item.name, item.poster ?? null)}
+                />
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* Trending from TMDB */}
+      {trendingData && trendingData.results.length > 0 && (
+        <section>
+          <h2 className="text-lg font-semibold mb-3">Trending</h2>
+          <div className="flex gap-3 overflow-x-auto pb-2">
+            {trendingData.results
+              .filter((r) => r.media_type === "movie" || r.media_type === "tv")
+              .slice(0, 20)
+              .map((result) => (
+                <div key={result.id} className="shrink-0 w-36">
+                  <PosterCard
+                    title={result.title ?? result.name ?? ""}
+                    posterUrl={result.poster_path ? `https://image.tmdb.org/t/p/w300${result.poster_path}` : null}
+                    rating={result.vote_average > 0 ? String(result.vote_average.toFixed(1)) : null}
+                    year={(result.release_date ?? result.first_air_date)?.substring(0, 4)}
+                    onClick={() => handleSelectItem(result.media_type, `tt${result.id}`, result.title ?? result.name ?? "", result.poster_path ? `https://image.tmdb.org/t/p/w300${result.poster_path}` : null)}
+                  />
+                </div>
+              ))}
+          </div>
+        </section>
+      )}
+
+      {/* Installed addons info */}
+      <section>
+        <h2 className="text-lg font-semibold mb-3">Installed Addons</h2>
+        <div className="space-y-2">
+          {(addons ?? []).map((addon) => (
+            <div key={addon.id} className="flex items-center gap-3 p-3 bg-surface-light rounded-lg">
+              {addon.manifest?.logo && <img src={addon.manifest.logo} alt="" className="w-8 h-8 object-contain rounded" />}
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium">{addon.manifest?.name ?? addon.addonUrl}</p>
+                <p className="text-xs text-gray-500 truncate">{addon.manifest?.description ?? ""}</p>
+              </div>
+              <span className="text-xs text-green-400">Active</span>
+            </div>
+          ))}
+        </div>
+      </section>
     </div>
   );
 }

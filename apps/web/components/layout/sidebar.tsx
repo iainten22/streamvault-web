@@ -3,7 +3,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   Home, Tv, Film, MonitorPlay, Music, Radio, Trophy,
-  History, Heart, CalendarDays, Search, Settings, Puzzle, Play,
+  History, Heart, CalendarDays, Search, Settings, Puzzle, Play, Layout, FolderOpen,
 } from "lucide-react";
 import { usePlayerStore } from "@/stores/player-store";
 
@@ -19,6 +19,8 @@ const navItems = [
   { href: "/catchup", icon: History, label: "Catch-up" },
   { href: "/favorites", icon: Heart, label: "Favorites" },
   { href: "/epg", icon: CalendarDays, label: "EPG" },
+  { href: "/multiview", icon: Layout, label: "Multiview" },
+  { href: "/local", icon: FolderOpen, label: "Local Media" },
   { href: "/search", icon: Search, label: "Search" },
   { href: "/settings", icon: Settings, label: "Settings" },
 ];

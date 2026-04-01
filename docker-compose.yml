@@ -6,7 +6,7 @@ services:
     ports:
       - "7845:3000"
     environment:
-      - NEXT_PUBLIC_API_URL=http://66.163.116.239:7846
+      - NEXT_PUBLIC_API_URL=
     depends_on:
       - streamvault-api
     restart: unless-stopped

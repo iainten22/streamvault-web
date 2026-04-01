@@ -122,4 +122,61 @@ export async function xtreamRoutes(app: FastifyInstance) {
     await cacheSet(cacheKey, epg, 6 * 60 * 60);
     return epg;
   });
+
+  app.get("/api/xtream/:serverId/vod/categories", async (request) => {
+    const { serverId } = request.params as { serverId: string };
+    const cacheKey = `vod_categories:${serverId}`;
+    const cached = await cacheGet<unknown[]>(cacheKey);
+    if (cached) return cached;
+    const creds = await getServerCredentials(request.user!.userId, parseInt(serverId));
+    const categories = await xtreamService.getVodCategories(creds.serverUrl, creds.username, creds.password);
+    await cacheSet(cacheKey, categories, 15 * 60);
+    return categories;
+  });
+
+  app.get("/api/xtream/:serverId/vod/streams", async (request) => {
+    const { serverId } = request.params as { serverId: string };
+    const { category_id } = request.query as { category_id?: string };
+    const cacheKey = `vod_streams:${serverId}:${category_id ?? "all"}`;
+    const cached = await cacheGet<unknown[]>(cacheKey);
+    if (cached) return cached;
+    const creds = await getServerCredentials(request.user!.userId, parseInt(serverId));
+    const streams = await xtreamService.getVodStreams(creds.serverUrl, creds.username, creds.password, category_id);
+    await cacheSet(cacheKey, streams, 30 * 60);
+    return streams;
+  });
+
+  app.get("/api/xtream/:serverId/series/categories", async (request) => {
+    const { serverId } = request.params as { serverId: string };
+    const cacheKey = `series_categories:${serverId}`;
+    const cached = await cacheGet<unknown[]>(cacheKey);
+    if (cached) return cached;
+    const creds = await getServerCredentials(request.user!.userId, parseInt(serverId));
+    const categories = await xtreamService.getSeriesCategories(creds.serverUrl, creds.username, creds.password);
+    await cacheSet(cacheKey, categories, 15 * 60);
+    return categories;
+  });
+
+  app.get("/api/xtream/:serverId/series/list", async (request) => {
+    const { serverId } = request.params as { serverId: string };
+    const { category_id } = request.query as { category_id?: string };
+    const cacheKey = `series_list:${serverId}:${category_id ?? "all"}`;
+    const cached = await cacheGet<unknown[]>(cacheKey);
+    if (cached) return cached;
+    const creds = await getServerCredentials(request.user!.userId, parseInt(serverId));
+    const series = await xtreamService.getSeries(creds.serverUrl, creds.username, creds.password, category_id);
+    await cacheSet(cacheKey, series, 30 * 60);
+    return series;
+  });
+
+  app.get("/api/xtream/:serverId/series/:seriesId/info", async (request) => {
+    const { serverId, seriesId } = request.params as { serverId: string; seriesId: string };
+    const cacheKey = `series_info:${serverId}:${seriesId}`;
+    const cached = await cacheGet<unknown>(cacheKey);
+    if (cached) return cached;
+    const creds = await getServerCredentials(request.user!.userId, parseInt(serverId));
+    const info = await xtreamService.getSeriesInfo(creds.serverUrl, creds.username, creds.password, parseInt(seriesId));
+    await cacheSet(cacheKey, info, 30 * 60);
+    return info;
+  });
 }

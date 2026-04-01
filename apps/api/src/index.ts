@@ -17,7 +17,7 @@ import { db } from "./db/index.js";
 import { sql } from "drizzle-orm";
 import * as schema from "./db/schema.js";
 
-const app = Fastify({ logger: true });
+const app = Fastify({ logger: true, bodyLimit: 100 * 1024 * 1024 });
 
 // Auto-create tables on startup
 try {

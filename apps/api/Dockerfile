@@ -13,4 +13,5 @@ COPY tsconfig.base.json ./
 RUN cd apps/api && npx tsc && npx tsc-alias
 
 EXPOSE 3001
+ENV NODE_TLS_REJECT_UNAUTHORIZED=0
 CMD ["node", "apps/api/dist/index.js"]

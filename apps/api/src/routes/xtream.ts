@@ -106,7 +106,52 @@ export async function xtreamRoutes(app: FastifyInstance) {
       extension ?? "ts",
     );
 
-    return { url };
+    // Return proxy URL so browser doesn't need to reach the panel directly
+    const proxyUrl = `/api/xtream/${serverId}/stream-proxy?type=${type}&stream_id=${stream_id}&extension=${extension ?? "ts"}`;
+    return { url: proxyUrl };
+  });
+
+  // Proxy stream through the API server
+  app.get("/api/xtream/:serverId/stream-proxy", async (request, reply) => {
+    const { serverId } = request.params as { serverId: string };
+    const { type, stream_id, extension } = request.query as {
+      type: "live" | "movie" | "series";
+      stream_id: string;
+      extension?: string;
+    };
+
+    const creds = await getServerCredentials(request.user!.userId, parseInt(serverId));
+    const url = xtreamService.buildStreamUrl(
+      creds.serverUrl,
+      creds.username,
+      creds.password,
+      type,
+      parseInt(stream_id),
+      extension ?? "ts",
+    );
+
+    try {
+      const response = await fetch(url, {
+        signal: AbortSignal.timeout(30_000),
+        headers: { "User-Agent": "StreamVault/1.0" },
+      });
+
+      if (!response.ok) {
+        return reply.status(response.status).send({ error: "Stream unavailable" });
+      }
+
+      const contentType = response.headers.get("content-type") ?? "video/mp2t";
+      reply.header("Content-Type", contentType);
+      reply.header("Access-Control-Allow-Origin", "*");
+
+      if (response.headers.get("content-length")) {
+        reply.header("Content-Length", response.headers.get("content-length")!);
+      }
+
+      return reply.send(response.body);
+    } catch (e) {
+      return reply.status(502).send({ error: "Failed to connect to stream server" });
+    }
   });
 
   app.get("/api/xtream/:serverId/epg/:streamId", async (request) => {

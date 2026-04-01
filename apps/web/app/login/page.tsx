@@ -43,8 +43,8 @@ export default function LoginPage() {
         {error && <p className="text-red-400 text-sm text-center">{error}</p>}
 
         <Input
-          label="Email"
-          type="email"
+          label="Email / Username"
+          type="text"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           required

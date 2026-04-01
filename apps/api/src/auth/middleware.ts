@@ -1,16 +1,41 @@
 import type { FastifyRequest, FastifyReply } from "fastify";
 import { verifyToken } from "./jwt.js";
+import { db } from "../db/index.js";
+import { users } from "../db/schema.js";
+import { eq } from "drizzle-orm";
+import { hashPassword } from "./password.js";
+
+let defaultUserId: number | null = null;
+
+async function getOrCreateDefaultUser(): Promise<number> {
+  if (defaultUserId) return defaultUserId;
+
+  const [existing] = await db.select().from(users).where(eq(users.email, "admin")).limit(1);
+  if (existing) {
+    defaultUserId = existing.id;
+    return existing.id;
+  }
+
+  const passwordHash = await hashPassword("admin");
+  const [created] = await db.insert(users).values({ email: "admin", passwordHash }).returning();
+  defaultUserId = created.id;
+  return created.id;
+}
 
 export async function requireAuth(request: FastifyRequest, reply: FastifyReply) {
   const token = request.cookies.token ?? request.headers.authorization?.replace("Bearer ", "");
-  if (!token) {
-    return reply.status(401).send({ error: "Authentication required" });
+  if (token) {
+    try {
+      request.user = verifyToken(token);
+      return;
+    } catch {
+      // Fall through to default user
+    }
   }
-  try {
-    request.user = verifyToken(token);
-  } catch {
-    return reply.status(401).send({ error: "Invalid token" });
-  }
+
+  // Auto-login as default user
+  const userId = await getOrCreateDefaultUser();
+  request.user = { userId, email: "admin" };
 }
 
 export async function optionalAuth(request: FastifyRequest) {
@@ -18,10 +43,11 @@ export async function optionalAuth(request: FastifyRequest) {
   if (token) {
     try {
       request.user = verifyToken(token);
-    } catch {
-      // Ignore invalid tokens in optional auth
-    }
+      return;
+    } catch {}
   }
+  const userId = await getOrCreateDefaultUser();
+  request.user = { userId, email: "admin" };
 }
 
 declare module "fastify" {

@@ -3,8 +3,10 @@ services:
     build:
       context: .
       dockerfile: apps/web/Dockerfile
+    ports:
+      - "7845:3000"
     environment:
-      - NEXT_PUBLIC_API_URL=
+      - NEXT_PUBLIC_API_URL=http://66.163.116.239:7846
     depends_on:
       - streamvault-api
     restart: unless-stopped
@@ -13,6 +15,8 @@ services:
     build:
       context: .
       dockerfile: apps/api/Dockerfile
+    ports:
+      - "7846:3001"
     environment:
       - DB_HOST=postgres
       - DB_PORT=5432
@@ -25,7 +29,7 @@ services:
       - JWT_SECRET=${JWT_SECRET}
       - ENCRYPTION_KEY=${ENCRYPTION_KEY}
       - INVITE_CODE=${INVITE_CODE:-}
-      - CORS_ORIGIN=https://${DOMAIN:-localhost}
+      - CORS_ORIGIN=http://66.163.116.239:7845
     depends_on:
       postgres:
         condition: service_healthy
@@ -60,24 +64,6 @@ services:
       retries: 5
     restart: unless-stopped
 
-  caddy:
-    image: caddy:2-alpine
-    ports:
-      - "7845:80"
-      - "7846:443"
-    volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile
-      - caddy_data:/data
-      - caddy_config:/config
-    environment:
-      - DOMAIN=${DOMAIN:-localhost}
-    depends_on:
-      - streamvault-web
-      - streamvault-api
-    restart: unless-stopped
-
 volumes:
   postgres_data:
   redis_data:
-  caddy_data:
-  caddy_config:

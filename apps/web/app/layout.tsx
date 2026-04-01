@@ -2,6 +2,7 @@ import "./globals.css";
 import type { Metadata } from "next";
 import { Sidebar } from "@/components/layout/sidebar";
 import { Header } from "@/components/layout/header";
+import { MiniPlayer } from "@/components/player/mini-player";
 
 export const metadata: Metadata = {
   title: "StreamVault",
@@ -21,6 +22,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             </main>
           </div>
         </div>
+        <MiniPlayer />
       </body>
     </html>
   );

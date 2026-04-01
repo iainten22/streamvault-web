@@ -11,6 +11,7 @@ import { settingsRoutes } from "./routes/settings.js";
 import { tmdbRoutes } from "./routes/tmdb.js";
 import { stremioRoutes } from "./routes/stremio.js";
 import { debridRoutes } from "./routes/debrid.js";
+import { sportsRoutes } from "./routes/sports.js";
 import { redis } from "./cache/redis.js";
 
 const app = Fastify({ logger: true });
@@ -32,6 +33,7 @@ await app.register(settingsRoutes);
 await app.register(tmdbRoutes);
 await app.register(stremioRoutes);
 await app.register(debridRoutes);
+await app.register(sportsRoutes);
 
 await redis.connect();
 await app.listen({ port: config.port, host: config.host });

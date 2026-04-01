@@ -21,6 +21,5 @@ WORKDIR /app
 COPY --from=build /app/apps/web/.next ./.next
 COPY --from=build /app/apps/web/node_modules ./node_modules
 COPY --from=build /app/apps/web/package.json ./
-COPY --from=build /app/apps/web/public ./public
 EXPOSE 3000
 CMD ["npx", "next", "start"]

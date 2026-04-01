@@ -80,6 +80,26 @@ try {
     );
   `);
   console.log("Database tables ready");
+
+  // Auto-create default admin user and install default Stremio addon
+  const DEFAULT_ADDON_URL = "https://aiostreams.elfhosted.com/stremio/35afb132-e64f-4103-9609-af4b2e969b9d/eyJpIjoiTkUxWmQ1ZEZnQWtQdHZYNWlndHlrZz09IiwiZSI6IlpMbm9tRktoNUVlSk5CSm1aSk1xbnZJQWpFcnZZY1VOMFJaa0RPSGhZMzg9IiwidCI6ImEifQ";
+
+  const [adminUser] = await db.execute(sql`
+    INSERT INTO users (email, password_hash) VALUES ('admin', '$2b$10$placeholder')
+    ON CONFLICT (email) DO UPDATE SET email = 'admin'
+    RETURNING id
+  `);
+  const adminId = (adminUser as { id: number }).id;
+
+  const existingAddon = await db.execute(sql`
+    SELECT id FROM stremio_addons WHERE user_id = ${adminId} AND addon_url = ${DEFAULT_ADDON_URL} LIMIT 1
+  `);
+  if ((existingAddon as unknown[]).length === 0) {
+    await db.execute(sql`
+      INSERT INTO stremio_addons (user_id, addon_url, config, enabled) VALUES (${adminId}, ${DEFAULT_ADDON_URL}, '{}', true)
+    `);
+    console.log("Default Stremio addon installed");
+  }
 } catch (e) {
   console.error("Failed to create tables:", e);
 }

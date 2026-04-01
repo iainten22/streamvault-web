@@ -85,7 +85,7 @@ try {
 }
 
 await app.register(cors, {
-  origin: config.corsOrigin,
+  origin: true,
   credentials: true,
 });
 await app.register(cookie);

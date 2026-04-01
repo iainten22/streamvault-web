@@ -8,13 +8,13 @@ import { signToken } from "../auth/jwt.js";
 import { config } from "../config.js";
 
 const registerSchema = z.object({
-  email: z.string().email(),
+  email: z.string().min(3),
   password: z.string().min(8),
   inviteCode: z.string().optional(),
 });
 
 const loginSchema = z.object({
-  email: z.string().email(),
+  email: z.string().min(1),
   password: z.string(),
 });
 

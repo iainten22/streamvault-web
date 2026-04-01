@@ -20,8 +20,8 @@ export default function SettingsPage() {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    if (user) fetchServers();
-  }, [user]);
+    fetchServers();
+  }, []);
 
   async function handleAddServer(e: React.FormEvent) {
     e.preventDefault();
@@ -39,14 +39,6 @@ export default function SettingsPage() {
     } finally {
       setAdding(false);
     }
-  }
-
-  if (!user) {
-    return (
-      <div className="text-center text-gray-400 mt-20">
-        <p>Please log in to manage servers.</p>
-      </div>
-    );
   }
 
   return (

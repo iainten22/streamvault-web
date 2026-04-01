@@ -18,6 +18,7 @@ export const config = {
     password: process.env.REDIS_PASSWORD ?? "",
   },
 
+  tmdbApiKey: process.env.TMDB_API_KEY ?? "",
   jwtSecret: process.env.JWT_SECRET ?? "dev-secret-change-me",
   encryptionKey: process.env.ENCRYPTION_KEY ?? "0".repeat(64),
   inviteCode: process.env.INVITE_CODE ?? "",

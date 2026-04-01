@@ -1,0 +1,4 @@
+{$DOMAIN:localhost} {
+    reverse_proxy /api/* streamvault-api:3001
+    reverse_proxy * streamvault-web:3000
+}

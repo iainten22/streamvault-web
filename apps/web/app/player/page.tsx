@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useRef, useCallback, useMemo } from "react";
+import { Suspense, useEffect, useRef, useCallback, useMemo } from "react";
 import { useSearchParams } from "next/navigation";
 import { VideoPlayer } from "@/components/player/video-player";
 import { usePlayerStore } from "@/stores/player-store";
@@ -7,6 +7,14 @@ import { usePlayerKeyboard } from "@/hooks/use-player-keyboard";
 import { api } from "@/lib/api-client";
 
 export default function PlayerPage() {
+  return (
+    <Suspense fallback={<div className="fixed inset-0 z-50 bg-black" />}>
+      <PlayerPageInner />
+    </Suspense>
+  );
+}
+
+function PlayerPageInner() {
   const searchParams = useSearchParams();
   const serverId = searchParams.get("serverId");
   const streamId = searchParams.get("streamId");

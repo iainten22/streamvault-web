@@ -51,7 +51,7 @@ export default function LiveTvPage() {
                 channel={channel}
                 onClick={() => {
                   // Player integration in Phase 2
-                  console.log("Play channel:", channel.stream_id);
+                  window.location.href = `/player?serverId=${activeServerId}&streamId=${channel.stream_id}&type=live&title=${encodeURIComponent(channel.name)}&logo=${encodeURIComponent(channel.stream_icon ?? "")}`;
                 }}
               />
             ))}

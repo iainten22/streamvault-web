@@ -13,5 +13,6 @@ COPY tsconfig.base.json ./
 ENV NEXT_TELEMETRY_DISABLED=1
 RUN cd apps/web && npx next build
 
+WORKDIR /app/apps/web
 EXPOSE 3000
-CMD ["npx", "--prefix", "apps/web", "next", "start"]
+CMD ["npx", "next", "start"]

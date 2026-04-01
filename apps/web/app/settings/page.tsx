@@ -12,15 +12,17 @@ export default function SettingsPage() {
   const { user } = useAuth();
   const { servers, loading, fetchServers, addServer, removeServer, authenticateServer } = useServerStore();
   const [showAddModal, setShowAddModal] = useState(false);
-  const [name, setName] = useState("");
-  const [serverUrl, setServerUrl] = useState("");
+  const [name, setName] = useState("Default Server");
+  const [serverUrl, setServerUrl] = useState("https://njala.ddns.me:8443");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [adding, setAdding] = useState(false);
   const [error, setError] = useState("");
 
   useEffect(() => {
-    fetchServers();
+    fetchServers().then(() => {
+      if (servers.length === 0) setShowAddModal(true);
+    });
   }, []);
 
   async function handleAddServer(e: React.FormEvent) {

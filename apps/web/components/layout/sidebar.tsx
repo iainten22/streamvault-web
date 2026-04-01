@@ -3,8 +3,9 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   Home, Tv, Film, MonitorPlay, Music, Radio, Trophy,
-  History, Heart, CalendarDays, Search, Settings, Puzzle,
+  History, Heart, CalendarDays, Search, Settings, Puzzle, Play,
 } from "lucide-react";
+import { usePlayerStore } from "@/stores/player-store";
 
 const navItems = [
   { href: "/", icon: Home, label: "Home" },
@@ -24,6 +25,7 @@ const navItems = [
 
 export function Sidebar() {
   const pathname = usePathname();
+  const { stream } = usePlayerStore();
 
   return (
     <aside className="w-56 bg-surface-light border-r border-gray-800 flex flex-col shrink-0">
@@ -31,6 +33,15 @@ export function Sidebar() {
         <h1 className="text-xl font-bold text-primary">StreamVault</h1>
       </div>
       <nav className="flex-1 overflow-y-auto py-2">
+        {stream && (
+          <a
+            href="/player"
+            className="flex items-center gap-3 px-4 py-2.5 text-sm text-primary-light bg-primary/10 hover:bg-primary/20 transition mx-2 mb-1 rounded-lg"
+          >
+            <Play size={18} />
+            <span className="truncate">{stream.title}</span>
+          </a>
+        )}
         {navItems.map(({ href, icon: Icon, label }) => {
           const active = href === "/" ? pathname === "/" : pathname.startsWith(href);
           return (
